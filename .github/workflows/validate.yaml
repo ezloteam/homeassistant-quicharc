@@ -17,6 +17,8 @@ jobs:
         uses: "hacs/action@main"
         with:
           category: "integration"
-          # A HACS custom repository, not in the default store, so not
-          # registered in home-assistant/brands.
-          ignore: "brands"
+          # A HACS custom repository, not in the default store: not
+          # registered in home-assistant/brands, and licensed under the Ezlo
+          # Available Source License, which isn't OSI-approved (HACS's
+          # license check is only a default-store rule).
+          ignore: "brands license"
