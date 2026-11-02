@@ -603,6 +603,18 @@ async def test_subscription_and_clock_issues(
             ISSUE_SUBSCRIPTION_REQUIRED,
             "https://ezlo.com/manage",
         ),
+        # quicharc d1057bf passes billing's manage_url for "none" too; a
+        # never-subscribed account still gets the subscribe link.
+        (
+            {
+                "entitlement": "none",
+                "manage_url": "https://ezlo.com/portal",
+                "subscribe_url": "https://ezlo.com/subscribe",
+            },
+            ISSUE_SUBSCRIPTION_REQUIRED,
+            ISSUE_SUBSCRIPTION_LAPSED,
+            "https://ezlo.com/subscribe",
+        ),
         # Only https links are shown; an unknown value isn't "lapsed".
         (
             {"entitlement": "gone", "subscribe_url": "javascript:alert(1)"},
