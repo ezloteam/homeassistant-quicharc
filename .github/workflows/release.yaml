@@ -1,0 +1,32 @@
+# A GitHub release, v<manifest version>, for each new version; HACS installs
+# from these. Runs on master, which GitLab's sync-to-github job pushes.
+name: Release
+
+on:
+  push:
+    branches: [master]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create the release for a new version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(jq -r '.version // empty' custom_components/quicharc/manifest.json)
+          if [ -z "$version" ]; then
+            echo "No version in manifest.json"
+            exit 1
+          fi
+          tag="v$version"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "Release $tag already exists"
+            exit 0
+          fi
+          git log -1 --format=%B > "$RUNNER_TEMP/notes.md"
+          gh release create "$tag" --target "$GITHUB_SHA" --title "$tag" --notes-file "$RUNNER_TEMP/notes.md"

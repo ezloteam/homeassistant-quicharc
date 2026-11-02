@@ -1,0 +1,248 @@
+{
+  "config": {
+    "step": {
+      "pick_implementation": {
+        "title": "Choose the Ezlo environment"
+      },
+      "owner": {
+        "title": "Home Assistant owner",
+        "description": "Signed in to Ezlo as {email}. Choose the Home Assistant user that your own devices and Ezlo cloud services act as.",
+        "data": {
+          "ha_user_id": "Home Assistant user"
+        }
+      },
+      "http": {
+        "title": "Show real client IPs",
+        "description": "QuicHarc reaches Home Assistant over loopback. So that Home Assistant sees the real IP address of web visitors (for IP bans, login notifications and logs), QuicHarc can turn on `use_x_forwarded_for` with `trusted_proxies: [127.0.0.1, ::1]` in Home Assistant's HTTP settings ({file}). Home Assistant applies HTTP settings when it restarts; QuicHarc checks the change works and keeps it, and Home Assistant undoes it by itself if it doesn't. Remote web access through Ezlo works once the change is in place.",
+        "data": {
+          "http_action": "HTTP settings"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Sign in to Ezlo again",
+        "description": "The Ezlo session for QuicHarc is no longer valid. Sign in again to keep remote access working."
+      }
+    },
+    "abort": {
+      "already_configured": "QuicHarc is already set up.",
+      "single_instance_allowed": "QuicHarc is already set up.",
+      "wrong_account": "Sign in with the same Ezlo account that set up QuicHarc.",
+      "reauth_successful": "Signed in again.",
+      "missing_configuration": "QuicHarc has no Ezlo sign-in configured.",
+      "authorize_url_timeout": "Timed out generating the sign-in URL.",
+      "no_url_available": "No Home Assistant URL is available for the sign-in redirect.",
+      "oauth_error": "Ezlo sign-in returned invalid data.",
+      "oauth_failed": "Ezlo sign-in failed.",
+      "oauth_timeout": "Ezlo sign-in timed out.",
+      "oauth_unauthorized": "Ezlo sign-in was refused.",
+      "user_rejected_authorize": "Sign-in was cancelled.",
+      "no_user_uuid": "Ezlo sign-in didn't say which account signed in. Try again later."
+    },
+    "create_entry": {
+      "default": "Linked to your Ezlo account."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "auto_approve_owner": "Approve my own devices automatically",
+          "edit_http_config": "Check and fix the HTTP configuration now"
+        },
+        "data_description": {
+          "auto_approve_owner": "Devices signed in with the Ezlo account that set up QuicHarc are paired as the owner's Home Assistant user without asking."
+        }
+      }
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "agent": {
+        "name": "Agent"
+      },
+      "forwarded_headers": {
+        "name": "Real client IPs"
+      }
+    },
+    "sensor": {
+      "edge_connection": {
+        "name": "Edge connection",
+        "state": {
+          "disconnected": "Disconnected",
+          "connecting": "Connecting",
+          "connected": "Connected"
+        }
+      },
+      "active_path": {
+        "name": "Active path",
+        "state": {
+          "none": "None",
+          "lan": "LAN",
+          "direct": "Direct",
+          "relay": "Relay"
+        }
+      },
+      "connected_devices": {
+        "name": "Connected devices"
+      },
+      "edge_rtt": {
+        "name": "Edge round-trip time"
+      }
+    },
+    "switch": {
+      "web_access": {
+        "name": "Web access"
+      },
+      "device_sync": {
+        "name": "Ezlo device sync"
+      }
+    }
+  },
+  "selector": {
+    "pairing_action": {
+      "options": {
+        "approve": "Approve",
+        "deny": "Deny"
+      }
+    },
+    "identity_conflict_action": {
+      "options": {
+        "reclaim": "Use this installation",
+        "leave": "Leave it on the other one"
+      }
+    },
+    "http_action": {
+      "options": {
+        "restart_now": "Change them and restart Home Assistant now",
+        "later": "Change them; I'll restart later",
+        "skip": "Don't change them"
+      }
+    }
+  },
+  "issues": {
+    "pairing_request": {
+      "title": "{device_name} wants remote access",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Approve {device_name}?",
+            "description": "{device_name}, signed in to Ezlo as {ezlo_user}, asks for remote access to this Home Assistant. If you approve, it signs in as the Home Assistant user you choose.",
+            "data": {
+              "action": "Decision",
+              "ha_user_id": "Home Assistant user"
+            }
+          }
+        },
+        "error": {
+          "pairing_failed": "The device couldn't be paired. Check that it is still waiting and try again."
+        },
+        "abort": {
+          "not_loaded": "QuicHarc isn't running.",
+          "request_gone": "The request has expired or was cancelled."
+        }
+      }
+    },
+    "restart_required": {
+      "title": "Restart Home Assistant for QuicHarc",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Restart Home Assistant",
+            "description": "QuicHarc changed the HTTP settings so Home Assistant sees real client IPs. Home Assistant applies them when it restarts. Submit to restart Home Assistant now."
+          }
+        }
+      }
+    },
+    "http_config_manual": {
+      "title": "Set QuicHarc's proxy settings in Home Assistant",
+      "description": "QuicHarc couldn't change Home Assistant's HTTP settings automatically ({reason}). Web access works, but Home Assistant sees every web visitor as 127.0.0.1. Set these HTTP settings (in Settings > System > Network on Home Assistant 2026.8 and later, or in configuration.yaml before that) and restart:\n\n```yaml\n{snippet}\n```"
+    },
+    "agent_failed": {
+      "title": "QuicHarc agent isn't running",
+      "description": "The QuicHarc agent isn't running: {error}. Remote access is unavailable until it runs."
+    },
+    "agent_verify_failed": {
+      "title": "QuicHarc agent failed verification",
+      "description": "The downloaded QuicHarc agent didn't match its pinned hash or signature, so it wasn't run: {error}."
+    },
+    "unsupported_arch": {
+      "title": "QuicHarc doesn't support this machine",
+      "description": "There is no QuicHarc agent for the {arch} architecture. QuicHarc supports 64-bit x86 and ARM."
+    },
+    "clock_skew": {
+      "title": "Home Assistant's clock is wrong",
+      "description": "This host's clock is {skew} seconds off from the Ezlo cloud. QuicHarc's connection grants depend on time; fix the system time (for example with NTP)."
+    },
+    "subscription_lapsed": {
+      "title": "Ezlo remote access subscription ended",
+      "description": "Your Ezlo account had Home Assistant remote access, and it has ended. Renew the subscription to restore remote access. QuicHarc reconnects by itself within a few minutes of the renewal; there's nothing to change here."
+    },
+    "identity_conflict": {
+      "title": "This home's identity is in use on another installation",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Another installation took over remote access",
+            "description": "Another Home Assistant installation is running with this home's remote access identity, most likely a restored backup or a cloned machine. On {node} at {at} the Ezlo edge gave remote access to that installation, and this one stopped connecting so the two don't keep taking it from each other.\n\nUse this installation: remote access moves back here, and the other installation gets this message instead. Leave it on the other one: nothing changes; this message is dismissed.",
+            "data": {
+              "action": "Remote access for this home"
+            }
+          }
+        },
+        "error": {
+          "reclaim_failed": "QuicHarc couldn't take remote access back. Check that the agent is running and try again."
+        },
+        "abort": {
+          "not_loaded": "QuicHarc isn't running.",
+          "conflict_gone": "This installation already has remote access.",
+          "left_on_other": "Remote access stays with the other installation."
+        }
+      }
+    },
+    "subscription_required": {
+      "title": "Ezlo remote access needs a subscription",
+      "description": "Your Ezlo account doesn't include Home Assistant remote access. Remote access through Ezlo needs a subscription on this account. Once the account has it, QuicHarc connects by itself within a few minutes; there's nothing to change here."
+    }
+  },
+  "exceptions": {
+    "not_loaded": {
+      "message": "QuicHarc isn't set up."
+    }
+  },
+  "services": {
+    "approve_device": {
+      "name": "Approve device",
+      "description": "Approves a pending pairing request.",
+      "fields": {
+        "device_id": {
+          "name": "Device",
+          "description": "The id of the device asking to pair."
+        },
+        "ha_user_id": {
+          "name": "Home Assistant user",
+          "description": "User id the device acts as. Defaults to the owner."
+        }
+      }
+    },
+    "deny_device": {
+      "name": "Deny device",
+      "description": "Denies a pending pairing request.",
+      "fields": {
+        "device_id": {
+          "name": "Device",
+          "description": "The id of the device asking to pair."
+        }
+      }
+    },
+    "revoke_device": {
+      "name": "Revoke device",
+      "description": "Removes a paired device's access and deletes its Home Assistant token.",
+      "fields": {
+        "device_id": {
+          "name": "Device",
+          "description": "The device id."
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,21 @@
+approve_device:
+  fields:
+    device_id:
+      required: true
+      selector:
+        text:
+    ha_user_id:
+      selector:
+        text:
+deny_device:
+  fields:
+    device_id:
+      required: true
+      selector:
+        text:
+revoke_device:
+  fields:
+    device_id:
+      required: true
+      selector:
+        text:

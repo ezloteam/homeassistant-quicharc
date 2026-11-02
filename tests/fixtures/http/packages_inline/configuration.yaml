@@ -1,0 +1,5 @@
+homeassistant:
+  packages:
+    network:
+      http:
+        server_port: 8123

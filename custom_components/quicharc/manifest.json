@@ -1,0 +1,26 @@
+{
+  "domain": "quicharc",
+  "name": "QuicHarc",
+  "after_dependencies": [
+    "my",
+    "web_rtc"
+  ],
+  "codeowners": [],
+  "config_flow": true,
+  "dependencies": [
+    "auth",
+    "http",
+    "network",
+    "repairs",
+    "zeroconf"
+  ],
+  "documentation": "https://github.com/ezloteam/homeassistant-quicharc",
+  "integration_type": "service",
+  "iot_class": "cloud_push",
+  "issue_tracker": "https://github.com/ezloteam/homeassistant-quicharc/issues",
+  "requirements": [
+    "ruamel.yaml>=0.18"
+  ],
+  "single_config_entry": true,
+  "version": "0.2.10"
+}

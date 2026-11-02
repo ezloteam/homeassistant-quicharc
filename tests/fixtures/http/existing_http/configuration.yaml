@@ -1,0 +1,12 @@
+default_config:
+
+http:
+  # Keep the port explicit.
+  server_port: 8123
+  ip_ban_enabled: true
+  login_attempts_threshold: 5
+  use_x_forwarded_for: false
+  trusted_proxies: 172.30.33.0/24
+
+logger:
+  default: info

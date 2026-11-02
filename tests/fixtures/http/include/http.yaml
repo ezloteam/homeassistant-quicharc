@@ -1,0 +1,4 @@
+# HTTP settings
+server_port: 8123
+cors_allowed_origins:
+  - https://example.com
