@@ -28,10 +28,10 @@ _LOGGER = logging.getLogger(__name__)
 # Ed25519 .sig each and a SHA256SUMS file; the quicharc service serves them
 # to signed-in users at {api}/agent/<version>/<file>. Copy the version and
 # the SHA256SUMS lines here when bumping the agent.
-AGENT_VERSION: Final[str | None] = "0.3.9"
+AGENT_VERSION: Final[str | None] = "0.4.0"
 AGENT_SHA256: Final[dict[str, str]] = {
-    "amd64": "44aeb101d8282039d257aa84fd99cba8e594ad2e01dbfe2b394040e83e8fafa6",
-    "arm64": "9b899fdd2717892d0171b8ba756f6c30c9ce252f89288ba5369c8b8693403ac8",
+    "amd64": "aa60d0912ac435f69737e6c4b5e28a4a6052a989d055bf00a3044dbc153c4eb8",
+    "arm64": "b347afa6c86cdcf8e57030483319bf713ad613ddb76b18af43b3dea6ed183a69",
 }
 # quicharc release/agent-signing-key.pub: raw 32-byte Ed25519 public key, base64.
 AGENT_SIGNING_KEY: Final = "3apvG1OHZlTWRim/+jsycoa/TdtjVvZtwo/1aBgXkBs="
