@@ -87,6 +87,9 @@
       },
       "edge_rtt": {
         "name": "Edge round-trip time"
+      },
+      "web_access_url": {
+        "name": "Web access URL"
       }
     },
     "switch": {

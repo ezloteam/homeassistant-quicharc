@@ -28,10 +28,10 @@ QuicHarc then downloads its agent, checks its signature, registers this Home Ass
 ## Using it
 
 - **Your phone:** sign in to the QuicHarc app with the same Ezlo account. Your own devices are approved automatically (you can turn that off in the integration's options). A device signed in to another Ezlo account appears as a repair, **{device} wants remote access**, where you approve or deny it and choose the Home Assistant user it acts as. Deleting a device's token in your Home Assistant profile, or the **QuicHarc: Revoke device** action, removes its access.
-- **Web access** (switch, off by default): lets a browser reach Home Assistant through Ezlo, after the Ezlo sign-in, at the address in the switch's `url` attribute (`https://<home id>.quicharc.ezlo.com`).
+- **Web access** (switch, off by default): lets a browser reach Home Assistant through Ezlo, after the Ezlo sign-in, at the address the **Web access URL** sensor shows (`https://<home id>.quicharc.ezlo.com`).
 - **Ezlo device sync** (switch, off by default): lets Ezlo's cloud see and control your Home Assistant devices. Turning it off withdraws that access and deletes its token.
 - **Notifications:** with Ezlo device sync on, `notify.quicharc` sends a notification to your phone through Ezlo.
-- **Status:** the integration's device shows the agent, the connection to Ezlo, its round-trip time, the active path to your devices (local, direct or relay), the number of connected devices, and whether Home Assistant sees real client addresses.
+- **Status:** the integration's device shows the agent, the connection to Ezlo, its round-trip time, the active path to your devices (local, direct or relay), the number of connected devices, whether Home Assistant sees real client addresses, and the **Web access URL** while web access is on and usable.
 
 ## Repairs
 

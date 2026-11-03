@@ -1,4 +1,4 @@
-"""Diagnostic sensors: edge connection, active path, devices, round-trip time."""
+"""Diagnostic sensors: edge connection, active path, devices, round-trip time, web URL."""
 
 from __future__ import annotations
 
@@ -33,6 +33,7 @@ async def async_setup_entry(
             ActivePathSensor(runtime),
             ConnectedDevicesSensor(runtime),
             EdgeRoundTripSensor(runtime),
+            WebAccessUrlSensor(runtime),
         ]
     )
 
@@ -133,3 +134,18 @@ class EdgeRoundTripSensor(QuicHarcEntity, SensorEntity):
     def native_value(self) -> float | None:
         """Return the round-trip time."""
         return self.runtime.state.edge_rtt_ms
+
+
+class WebAccessUrlSensor(QuicHarcEntity, SensorEntity):
+    """The browser address while web access is usable (switch on, web grant)."""
+
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(self, runtime) -> None:
+        """Initialize."""
+        super().__init__(runtime, "web_access_url")
+
+    @property
+    def native_value(self) -> str | None:
+        """Return https://<hostname>, or None while web access isn't usable."""
+        return self.runtime.web_url

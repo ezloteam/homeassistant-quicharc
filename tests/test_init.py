@@ -1374,3 +1374,85 @@ async def test_device_sync_unavailable(
     assert str(err.value) == "Ezlo device sync isn't available yet"
     assert hass.states.get("switch.quicharc_ezlo_device_sync").state == "off"
     assert not setup_entry.runtime_data.device_sync
+
+
+WEB_URL_SENSOR = "sensor.quicharc_web_access_url"
+
+
+def _mock_web_grant(mock_service: AiohttpClientMocker, web: bool, scope: bool) -> None:
+    """The service after a web access change: home flag, grant and its scopes."""
+    mock_service.clear_requests()
+    mock_service.patch(f"{API}/homes/{HOME_ID}", json=_home(web_access=web))
+    grant = _grant(web_access=web)
+    grant["scopes"] = ["app", "web"] if scope else ["app"]
+    mock_service.post(f"{API}/homes/{HOME_ID}/grant", json=grant)
+    mock_service.get(
+        f"{API}/homes/{HOME_ID}/devices?state=pending", json={"pairings": []}
+    )
+    mock_service.get(f"{API}/homes/{HOME_ID}/enrollments", json={"enrollments": []})
+
+
+async def test_web_access_url_off(hass: HomeAssistant, setup_entry) -> None:
+    """With web access off there's no URL, not a stale one."""
+    from homeassistant.helpers import entity_registry as er
+
+    state = hass.states.get(WEB_URL_SENSOR)
+    assert state.state == "unknown"
+    entry = er.async_get(hass).async_get(WEB_URL_SENSOR)
+    assert entry.entity_category is er.EntityCategory.DIAGNOSTIC
+    assert entry.translation_key == "web_access_url"
+    assert hass.states.get("switch.quicharc_web_access").attributes["url"] is None
+
+
+async def test_web_access_url_on_with_web_scope(
+    hass: HomeAssistant, setup_entry, mock_service: AiohttpClientMocker
+) -> None:
+    """Switch on and a grant with the web scope: the URL shows."""
+    _mock_web_grant(mock_service, web=True, scope=True)
+    await hass.services.async_call(
+        "switch", "turn_on", {"entity_id": "switch.quicharc_web_access"}, blocking=True
+    )
+    url = f"https://{_home()['hostname']}"
+    assert hass.states.get(WEB_URL_SENSOR).state == url
+    assert hass.states.get("switch.quicharc_web_access").attributes["url"] == url
+
+
+async def test_web_access_url_on_without_web_scope(
+    hass: HomeAssistant, setup_entry, mock_service: AiohttpClientMocker
+) -> None:
+    """Switch on but the grant lacks web (not entitled to it): no URL."""
+    _mock_web_grant(mock_service, web=True, scope=False)
+    await hass.services.async_call(
+        "switch", "turn_on", {"entity_id": "switch.quicharc_web_access"}, blocking=True
+    )
+    assert hass.states.get("switch.quicharc_web_access").state == "on"
+    assert hass.states.get(WEB_URL_SENSOR).state == "unknown"
+
+
+async def test_web_access_url_follows_the_switch(
+    hass: HomeAssistant, setup_entry, mock_service: AiohttpClientMocker
+) -> None:
+    """Turning web access on and off updates the sensor straight away."""
+    url = f"https://{_home()['hostname']}"
+    _mock_web_grant(mock_service, web=True, scope=True)
+    await hass.services.async_call(
+        "switch", "turn_on", {"entity_id": "switch.quicharc_web_access"}, blocking=True
+    )
+    assert hass.states.get(WEB_URL_SENSOR).state == url
+
+    _mock_web_grant(mock_service, web=False, scope=False)
+    await hass.services.async_call(
+        "switch", "turn_off", {"entity_id": "switch.quicharc_web_access"}, blocking=True
+    )
+    assert hass.states.get(WEB_URL_SENSOR).state == "unknown"
+
+    # A later grant refresh that drops the web scope also clears it.
+    _mock_web_grant(mock_service, web=True, scope=True)
+    await hass.services.async_call(
+        "switch", "turn_on", {"entity_id": "switch.quicharc_web_access"}, blocking=True
+    )
+    assert hass.states.get(WEB_URL_SENSOR).state == url
+    _mock_web_grant(mock_service, web=True, scope=False)
+    await setup_entry.runtime_data.async_refresh_config()
+    await hass.async_block_till_done()
+    assert hass.states.get(WEB_URL_SENSOR).state == "unknown"

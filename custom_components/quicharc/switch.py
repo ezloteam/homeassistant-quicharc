@@ -48,9 +48,8 @@ class WebAccessSwitch(QuicHarcEntity, SwitchEntity):
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        """Return the web address."""
-        hostname = self.runtime.entry.data.get("hostname")
-        return {"url": f"https://{hostname}" if hostname else None}
+        """Return the web address while web access is usable."""
+        return {"url": self.runtime.web_url}
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn web access on."""

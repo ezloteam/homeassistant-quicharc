@@ -193,6 +193,19 @@ class QuicHarcRuntime:
             return self.home_config.web_access
         return bool(self.entry.options.get(CONF_WEB_ACCESS, False))
 
+    @property
+    def web_url(self) -> str | None:
+        """Return the web address while web access is usable, else None.
+
+        Usable means the switch is on and the current grant carries the web
+        scope; the edge only proxies web traffic for such a grant.
+        """
+        config = self.home_config
+        if config is None or not self.web_access or "web" not in config.scopes:
+            return None
+        hostname = config.hostname or self.entry.data.get("hostname")
+        return f"https://{hostname}" if hostname else None
+
     async def async_start(self) -> None:
         """Load state and start the agent."""
         if stored := await self.store.async_load():

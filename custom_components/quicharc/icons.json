@@ -1,0 +1,9 @@
+{
+  "entity": {
+    "sensor": {
+      "web_access_url": {
+        "default": "mdi:web"
+      }
+    }
+  }
+}
