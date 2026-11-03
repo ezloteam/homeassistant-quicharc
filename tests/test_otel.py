@@ -133,7 +133,8 @@ async def test_spans_are_sent_with_the_resource(
     (body,) = posted(aioclient_mock, "traces")
     resource = attrs(body["resourceSpans"][0]["resource"])
     assert resource["service.name"] == SERVICE_NAME
-    assert resource["deployment.environment"] == "stg"
+    assert resource["deployment.environment.name"] == "stg"
+    assert "deployment.environment" not in resource
     assert resource["quicharc.home_id"] == HOME_ID
     assert resource["service.instance.id"] == telemetry.install_id
     assert resource["homeassistant.version"]

@@ -209,7 +209,7 @@ class Telemetry:
             "service.name": SERVICE_NAME,
             "service.version": VERSION,
             "service.instance.id": self.install_id,
-            "deployment.environment": self.environment or "unknown",
+            "deployment.environment.name": self.environment or "unknown",
             "homeassistant.version": HA_VERSION,
             "host.arch": platform.machine(),
             "telemetry.sdk.name": SERVICE_NAME,

@@ -40,7 +40,7 @@ STOP_TIMEOUT: Final = 5.0
 # Turns off the agent's own OpenTelemetry (agent 0.3.1+). Telemetry is always
 # on (architecture section 10.1), so it is removed from the agent's environment.
 TELEMETRY_OFF_ENV: Final = "QUICHARC_OTEL_DISABLED"
-# deployment.environment for the agent's telemetry, the same as the
+# deployment.environment.name for the agent's telemetry, the same as the
 # integration's (agent 0.3.x; it would otherwise guess from the hostname).
 TELEMETRY_ENVIRONMENT_ENV: Final = "QUICHARC_OTEL_ENVIRONMENT"
 
