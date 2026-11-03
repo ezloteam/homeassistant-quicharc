@@ -12,6 +12,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import QuicHarcConfigEntry
 from .api import QuicHarcApiError, QuicHarcConnectionError
+from .const import DOMAIN
 from .entity import QuicHarcEntity
 
 
@@ -66,6 +67,11 @@ class WebAccessSwitch(QuicHarcEntity, SwitchEntity):
             raise HomeAssistantError(f"Couldn't change web access: {err}") from err
 
 
+# The service isn't registered in this Ezlo environment (404), or is turned
+# off (409): nothing the user can fix here.
+DEVICE_SYNC_UNAVAILABLE = frozenset({"unknown_service_peer", "service_peer_disabled"})
+
+
 class DeviceSyncSwitch(QuicHarcEntity, SwitchEntity):
     """Ezlo device sync: enrolls the home with cloud/integrations/homeassistant.
 
@@ -100,7 +106,16 @@ class DeviceSyncSwitch(QuicHarcEntity, SwitchEntity):
     async def _async_set(self, enabled: bool) -> None:
         try:
             await self.runtime.async_set_device_sync(enabled)
-        except (QuicHarcApiError, QuicHarcConnectionError) as err:
+        except QuicHarcApiError as err:
+            if err.code in DEVICE_SYNC_UNAVAILABLE:
+                raise HomeAssistantError(
+                    translation_domain=DOMAIN,
+                    translation_key="device_sync_unavailable",
+                ) from err
+            raise HomeAssistantError(
+                f"Couldn't change Ezlo device sync: {err}"
+            ) from err
+        except QuicHarcConnectionError as err:
             raise HomeAssistantError(
                 f"Couldn't change Ezlo device sync: {err}"
             ) from err

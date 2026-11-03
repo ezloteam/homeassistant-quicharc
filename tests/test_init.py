@@ -1344,3 +1344,33 @@ async def test_restart_now_after_the_http_change(
     assert entry.data[CONF_RESTART_AFTER_HTTP_EDIT] is False
     assert await hass.config_entries.async_unload(entry.entry_id)
     await hass.async_block_till_done()
+
+
+@pytest.mark.parametrize(
+    ("status", "code"),
+    [(404, "unknown_service_peer"), (409, "service_peer_disabled")],
+)
+async def test_device_sync_unavailable(
+    hass: HomeAssistant,
+    setup_entry,
+    mock_service: AiohttpClientMocker,
+    status: int,
+    code: str,
+) -> None:
+    """A service that isn't registered or is turned off says so, and stays off."""
+    from homeassistant.exceptions import HomeAssistantError
+
+    mock_service.post(
+        f"{API}/homes/{HOME_ID}/enrollments", status=status, json={"error": code}
+    )
+    with pytest.raises(HomeAssistantError) as err:
+        await hass.services.async_call(
+            "switch",
+            "turn_on",
+            {"entity_id": "switch.quicharc_ezlo_device_sync"},
+            blocking=True,
+        )
+    assert err.value.translation_key == "device_sync_unavailable"
+    assert str(err.value) == "Ezlo device sync isn't available yet"
+    assert hass.states.get("switch.quicharc_ezlo_device_sync").state == "off"
+    assert not setup_entry.runtime_data.device_sync

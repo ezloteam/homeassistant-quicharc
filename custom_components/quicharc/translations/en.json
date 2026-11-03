@@ -207,6 +207,9 @@
   "exceptions": {
     "not_loaded": {
       "message": "QuicHarc isn't set up."
+    },
+    "device_sync_unavailable": {
+      "message": "Ezlo device sync isn't available yet"
     }
   },
   "services": {
