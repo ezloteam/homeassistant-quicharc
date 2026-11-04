@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Final
 
 DOMAIN: Final = "quicharc"
-VERSION: Final = "0.2.15"
+VERSION: Final = "0.2.16"
 
 EVENT_NOTIFICATION: Final = "quicharc_notification"
 
@@ -33,6 +33,9 @@ HTTP_LATER: Final = "later"
 HTTP_SKIP: Final = "skip"
 CONF_WEB_ACCESS: Final = "web_access"
 CONF_AUTO_APPROVE_OWNER: Final = "auto_approve_owner"
+# Whether browsers must pass the Ezlo sign-in gate (quicharc 3ed9964); off by
+# default. Mirrors the service's home setting, like CONF_WEB_ACCESS.
+CONF_GATE_REQUIRED: Final = "gate_required"
 # "Share diagnostics with Ezlo", removed in 0.2.2: telemetry is always on
 # (architecture section 10.1). Config entry minor version 2 drops it.
 CONF_TELEMETRY: Final = "telemetry"

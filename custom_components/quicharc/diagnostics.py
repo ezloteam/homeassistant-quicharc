@@ -77,6 +77,7 @@ async def async_get_config_entry_diagnostics(
                     "home_id": config.home_id,
                     "hostname": config.hostname,
                     "web_access": config.web_access,
+                    "gate_required": config.gate_required,
                     "scopes": config.scopes,
                     "grant_expires_at": config.expires_at.isoformat(),
                     "refresh_after": config.refresh_after.isoformat(),

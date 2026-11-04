@@ -40,6 +40,7 @@ from .api import (
 from .const import (
     CLOCK_SKEW_TOLERANCE_SECONDS,
     CONF_EZLO_USER_UUID,
+    CONF_GATE_REQUIRED,
     CONF_HOME_ID,
     CONF_HOSTNAME,
     CONF_WEB_ACCESS,
@@ -192,6 +193,13 @@ class QuicHarcRuntime:
         if self.home_config is not None:
             return self.home_config.web_access
         return bool(self.entry.options.get(CONF_WEB_ACCESS, False))
+
+    @property
+    def gate_required(self) -> bool:
+        """Return whether browsers must pass the Ezlo sign-in gate."""
+        if self.home_config is not None:
+            return self.home_config.gate_required
+        return bool(self.entry.options.get(CONF_GATE_REQUIRED, False))
 
     @property
     def web_url(self) -> str | None:
@@ -589,6 +597,36 @@ class QuicHarcRuntime:
             if self.last_refresh_error:
                 span.set_error(f"grant refresh failed: {self.last_refresh_error}")
             _LOGGER.info("Web access turned %s", "on" if enabled else "off")
+
+    async def async_set_gate_required(self, enabled: bool) -> None:
+        """Require the Ezlo sign-in gate for web access, or not.
+
+        On takes effect at once (the service revokes open web access at the
+        edges); off takes effect with the next grant, so the grant is
+        re-issued right away, as for web access.
+        """
+        assert self.home_id is not None
+        with self.telemetry.span(
+            "gate_required.set",
+            attributes={
+                "quicharc.gate_required": enabled,
+                "quicharc.home_id": self.home_id,
+            },
+        ) as span:
+            await self.api.async_set_gate_required(self.home_id, enabled)
+            if self.home_config is not None:
+                self.home_config.gate_required = enabled
+            self.hass.config_entries.async_update_entry(
+                self.entry,
+                options={**self.entry.options, CONF_GATE_REQUIRED: enabled},
+            )
+            await self.async_refresh_config()
+            if self.last_refresh_error:
+                span.set_error(f"grant refresh failed: {self.last_refresh_error}")
+            _LOGGER.info(
+                "Ezlo sign-in for web access %s",
+                "required" if enabled else "not required",
+            )
 
     @callback
     def ice_servers(self) -> list[RTCIceServer]:

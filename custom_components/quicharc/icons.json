@@ -4,6 +4,14 @@
       "web_access_url": {
         "default": "mdi:web"
       }
+    },
+    "switch": {
+      "gate_required": {
+        "default": "mdi:shield-lock-open-outline",
+        "state": {
+          "on": "mdi:shield-lock-outline"
+        }
+      }
     }
   }
 }

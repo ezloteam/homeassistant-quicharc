@@ -69,6 +69,10 @@ class ClockSkewError(QuicHarcApiError):
     """A proof timestamp was outside the service's ±5 minute window."""
 
 
+class SettingNotApplied(QuicHarcApiError):
+    """The service answered but didn't apply a setting (it predates it)."""
+
+
 class QuicHarcConnectionError(Exception):
     """The quicharc service can't be reached, or answered 5xx."""
 
@@ -116,6 +120,7 @@ class HomeGrant:
     edges: list[dict[str, Any]]
     ice_servers: list[IceServer]
     revocations: list[dict[str, Any]] = field(default_factory=list)
+    gate_required: bool = False
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> HomeGrant:
@@ -133,6 +138,7 @@ class HomeGrant:
             edges=list(data.get("edges") or []),
             ice_servers=[IceServer.from_dict(s) for s in data.get("ice_servers") or []],
             revocations=list(data.get("revocations") or []),
+            gate_required=bool(home.get("gate_required", False)),
         )
 
 
@@ -308,6 +314,21 @@ class QuicHarcApi:
         await self._request(
             "PATCH", f"/homes/{home_id}", {"web_access": enabled}, route="/homes/{id}"
         )
+
+    async def async_set_gate_required(self, home_id: str, enabled: bool) -> None:
+        """Require the Ezlo sign-in gate for web access, or not.
+
+        A service older than the setting ignores the unknown field, so the
+        home view it answers with is read back to confirm.
+        """
+        home = await self._request(
+            "PATCH",
+            f"/homes/{home_id}",
+            {"gate_required": enabled},
+            route="/homes/{id}",
+        )
+        if home.get("gate_required") is not enabled:
+            raise SettingNotApplied(200, "gate_required_not_applied")
 
     async def async_set_pairing(
         self,

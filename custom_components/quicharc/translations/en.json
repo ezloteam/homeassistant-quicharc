@@ -98,6 +98,9 @@
       },
       "device_sync": {
         "name": "Ezlo device sync"
+      },
+      "gate_required": {
+        "name": "Require Ezlo sign-in for web access"
       }
     }
   },
@@ -213,6 +216,9 @@
     },
     "device_sync_unavailable": {
       "message": "Ezlo device sync isn't available yet"
+    },
+    "gate_not_supported": {
+      "message": "Ezlo's service doesn't support this setting yet"
     }
   },
   "services": {

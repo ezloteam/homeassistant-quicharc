@@ -1,6 +1,6 @@
 # QuicHarc for Home Assistant
 
-Remote access to your Home Assistant through your Ezlo account. The QuicHarc app on your phone connects straight to Home Assistant over QUIC, and through a relay when a direct connection isn't possible. A browser can reach Home Assistant through Ezlo's servers, behind the Ezlo sign-in. Nothing needs to be opened on your router.
+Remote access to your Home Assistant through your Ezlo account. The QuicHarc app on your phone connects straight to Home Assistant over QUIC, and through a relay when a direct connection isn't possible. A browser can reach Home Assistant through Ezlo's servers, optionally behind the Ezlo sign-in. Nothing needs to be opened on your router.
 
 ## Requirements
 
@@ -28,7 +28,8 @@ QuicHarc then downloads its agent, checks its signature, registers this Home Ass
 ## Using it
 
 - **Your phone:** sign in to the QuicHarc app with the same Ezlo account. Your own devices are approved automatically (you can turn that off in the integration's options). A device signed in to another Ezlo account appears as a repair, **{device} wants remote access**, where you approve or deny it and choose the Home Assistant user it acts as. Deleting a device's token in your Home Assistant profile, or the **QuicHarc: Revoke device** action, removes its access.
-- **Web access** (switch, off by default): lets a browser reach Home Assistant through Ezlo, after the Ezlo sign-in, at the address the **Web access URL** sensor shows (`https://<home id>.quicharc.ezlo.com`).
+- **Web access** (switch, off by default): lets a browser reach Home Assistant through Ezlo at the address the **Web access URL** sensor shows (`https://<home id>.quicharc.ezlo.com`). Home Assistant's own login still protects it.
+- **Require Ezlo sign-in for web access** (switch, off by default): browsers must also sign in with your Ezlo account before they reach Home Assistant's login. Turning it on applies at once; turning it off applies within seconds.
 - **Ezlo device sync** (switch, off by default): lets Ezlo's cloud see and control your Home Assistant devices. Turning it off withdraws that access and deletes its token.
 - **Notifications:** with Ezlo device sync on, `notify.quicharc` sends a notification to your phone through Ezlo.
 - **Status:** the integration's device shows the agent, the connection to Ezlo, its round-trip time, the active path to your devices (local, direct or relay), the number of connected devices, whether Home Assistant sees real client addresses, and the **Web access URL** while web access is on and usable.

@@ -11,7 +11,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import QuicHarcConfigEntry
-from .api import QuicHarcApiError, QuicHarcConnectionError
+from .api import QuicHarcApiError, QuicHarcConnectionError, SettingNotApplied
 from .const import DOMAIN
 from .entity import QuicHarcEntity
 
@@ -23,7 +23,11 @@ async def async_setup_entry(
 ) -> None:
     """Set up the switch."""
     async_add_entities(
-        [WebAccessSwitch(entry.runtime_data), DeviceSyncSwitch(entry.runtime_data)]
+        [
+            WebAccessSwitch(entry.runtime_data),
+            GateRequiredSwitch(entry.runtime_data),
+            DeviceSyncSwitch(entry.runtime_data),
+        ]
     )
 
 
@@ -64,6 +68,50 @@ class WebAccessSwitch(QuicHarcEntity, SwitchEntity):
             await self.runtime.async_set_web_access(enabled)
         except (QuicHarcApiError, QuicHarcConnectionError) as err:
             raise HomeAssistantError(f"Couldn't change web access: {err}") from err
+
+
+class GateRequiredSwitch(QuicHarcEntity, SwitchEntity):
+    """Require the Ezlo sign-in before a browser reaches Home Assistant. Off by default.
+
+    Off, web requests go straight to Home Assistant (web access on and the
+    web scope are still needed); on, the edge's Ezlo sign-in gate comes first.
+    """
+
+    _attr_entity_category = EntityCategory.CONFIG
+
+    def __init__(self, runtime) -> None:
+        """Initialize."""
+        super().__init__(runtime, "gate_required")
+
+    @property
+    def available(self) -> bool:
+        """Available once the home is registered."""
+        return self.runtime.home_id is not None
+
+    @property
+    def is_on(self) -> bool:
+        """Return whether the Ezlo sign-in is required."""
+        return self.runtime.gate_required
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        """Require the Ezlo sign-in."""
+        await self._async_set(True)
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """Stop requiring the Ezlo sign-in."""
+        await self._async_set(False)
+
+    async def _async_set(self, enabled: bool) -> None:
+        try:
+            await self.runtime.async_set_gate_required(enabled)
+        except SettingNotApplied as err:
+            raise HomeAssistantError(
+                translation_domain=DOMAIN, translation_key="gate_not_supported"
+            ) from err
+        except (QuicHarcApiError, QuicHarcConnectionError) as err:
+            raise HomeAssistantError(
+                f"Couldn't change the Ezlo sign-in setting: {err}"
+            ) from err
 
 
 # The service isn't registered in this Ezlo environment (404), or is turned

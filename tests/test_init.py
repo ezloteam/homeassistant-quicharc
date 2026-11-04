@@ -1456,3 +1456,89 @@ async def test_web_access_url_follows_the_switch(
     await setup_entry.runtime_data.async_refresh_config()
     await hass.async_block_till_done()
     assert hass.states.get(WEB_URL_SENSOR).state == "unknown"
+
+
+GATE_SWITCH = "switch.quicharc_require_ezlo_sign_in_for_web_access"
+
+
+def _mock_gate(
+    mock_service: AiohttpClientMocker, *, applied: bool | None, scopes: list[str]
+) -> None:
+    """The service's answer to a gate_required PATCH, and the next grant.
+
+    applied None is a service older than the setting: it drops the field
+    and answers with a home view that has no gate_required.
+    """
+    mock_service.clear_requests()
+    home = _home(web_access=True)
+    if applied is not None:
+        home["gate_required"] = applied
+    mock_service.patch(f"{API}/homes/{HOME_ID}", json=home)
+    grant = _grant(web_access=True)
+    grant["scopes"] = scopes
+    if applied is not None:
+        grant["home"]["gate_required"] = applied
+    mock_service.post(f"{API}/homes/{HOME_ID}/grant", json=grant)
+    mock_service.get(
+        f"{API}/homes/{HOME_ID}/devices?state=pending", json={"pairings": []}
+    )
+    mock_service.get(f"{API}/homes/{HOME_ID}/enrollments", json={"enrollments": []})
+
+
+async def test_gate_switch_off_by_default(hass: HomeAssistant, setup_entry) -> None:
+    """Existing homes don't require the Ezlo sign-in."""
+    from homeassistant.helpers import entity_registry as er
+
+    assert hass.states.get(GATE_SWITCH).state == "off"
+    entry = er.async_get(hass).async_get(GATE_SWITCH)
+    assert entry.entity_category is er.EntityCategory.CONFIG
+    assert entry.translation_key == "gate_required"
+
+
+async def test_gate_switch_on_and_off(
+    hass: HomeAssistant, setup_entry, mock_service: AiohttpClientMocker
+) -> None:
+    """The switch PATCHes the home and re-issues the grant each way."""
+    _mock_gate(mock_service, applied=True, scopes=["app", "web"])
+    await hass.services.async_call(
+        "switch", "turn_on", {"entity_id": GATE_SWITCH}, blocking=True
+    )
+    calls = [(c[0], str(c[1]), c[2]) for c in mock_service.mock_calls]
+    patch_at = next(i for i, c in enumerate(calls) if c[0] == "PATCH")
+    assert calls[patch_at][2] == {"gate_required": True}
+    assert ("POST", f"{API}/homes/{HOME_ID}/grant") in [c[:2] for c in calls[patch_at:]]
+    assert hass.states.get(GATE_SWITCH).state == "on"
+    assert setup_entry.options["gate_required"] is True
+
+    # Off takes effect with the next grant, which carries web_open as well.
+    _mock_gate(mock_service, applied=False, scopes=["app", "web", "web_open"])
+    await hass.services.async_call(
+        "switch", "turn_off", {"entity_id": GATE_SWITCH}, blocking=True
+    )
+    calls = [(c[0], str(c[1]), c[2]) for c in mock_service.mock_calls]
+    assert calls[0][:2] == ("PATCH", f"{API}/homes/{HOME_ID}")
+    assert calls[0][2] == {"gate_required": False}
+    assert ("POST", f"{API}/homes/{HOME_ID}/grant") in [c[:2] for c in calls]
+    assert hass.states.get(GATE_SWITCH).state == "off"
+    # web_open next to web doesn't change what web access shows.
+    runtime = setup_entry.runtime_data
+    assert runtime.home_config.scopes == ["app", "web", "web_open"]
+    assert hass.states.get(WEB_URL_SENSOR).state == f"https://{_home()['hostname']}"
+
+
+async def test_gate_switch_on_an_old_service(
+    hass: HomeAssistant, setup_entry, mock_service: AiohttpClientMocker
+) -> None:
+    """A service that ignores gate_required is caught, not silently accepted."""
+    from homeassistant.exceptions import HomeAssistantError
+
+    _mock_gate(mock_service, applied=None, scopes=["app", "web"])
+    with pytest.raises(HomeAssistantError) as err:
+        await hass.services.async_call(
+            "switch", "turn_on", {"entity_id": GATE_SWITCH}, blocking=True
+        )
+    assert err.value.translation_key == "gate_not_supported"
+    assert hass.states.get(GATE_SWITCH).state == "off"
+    assert "gate_required" not in setup_entry.options
+    # No grant was re-issued for a setting that didn't change.
+    assert not [c for c in mock_service.mock_calls if str(c[1]).endswith("/grant")]
