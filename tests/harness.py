@@ -1,6 +1,6 @@
 """The Home Assistant test helpers, from whichever package is installed.
 
-From 2026.11, Home Assistant publishes them itself as pytest-home-assistant
+From 2026.11, Home Assistant publishes them itself as pytest-homeassistant
 (pytest_homeassistant), which registers its plugin through an entry point.
 Earlier releases use pytest-homeassistant-custom-component, which conftest
 loads as a plugin. The two must not be installed together.
