@@ -295,6 +295,9 @@ async def test_socket_outside_the_data_dir(
     binary = AgentBinary(hass, tmp_path, base_url="https://unused", auth=_auth)
     connected = asyncio.Event()
     data_dir = tmp_path / "data"
+    # An earlier version's socket file, left in the data directory.
+    data_dir.mkdir()
+    (data_dir / "agent.sock").write_text("")
     real_chmod = Path.chmod
 
     async def on_connected() -> None:
@@ -331,6 +334,7 @@ async def test_socket_outside_the_data_dir(
         socket_dir = socket_path.parent
         assert socket_path.is_socket()
         assert data_dir not in socket_path.parents
+        assert not (data_dir / "agent.sock").exists()
         assert socket_dir.parent == Path(tempfile.gettempdir())
         assert socket_dir.stat().st_mode & 0o777 == 0o700
         assert "Can't restrict" in caplog.text

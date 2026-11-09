@@ -351,6 +351,9 @@ class AgentSupervisor:
             # A host share (Docker on macOS) may refuse chmod; the directory
             # then keeps the share's permissions.
             _LOGGER.warning("Can't restrict %s to its owner: %s", self._data_dir, err)
+        # Before 0.2.17 the socket was in the data directory; drop the leftover.
+        with contextlib.suppress(OSError):
+            (self._data_dir / SOCKET_NAME).unlink(missing_ok=True)
         # A new private directory for each start (mode 0700, a random name
         # nobody can create first); the previous one goes.
         if self._socket_dir is not None:
