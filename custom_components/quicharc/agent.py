@@ -9,6 +9,8 @@ import contextvars
 import logging
 import os
 from pathlib import Path
+import shutil
+import tempfile
 import time
 from typing import Any, Final
 
@@ -83,11 +85,16 @@ class AgentSupervisor:
         self.last_error: str | None = None
         self.started_at: float | None = None
         self._first_parent: SpanContext | None = None
+        # The socket lives in a private directory under the system temp
+        # directory, not in the data directory: /config can be a host share
+        # (Docker on macOS) where a Unix socket can't be created or chmodded.
+        self._socket_dir: Path | None = None
 
     @property
     def socket_path(self) -> Path:
         """Return the agent socket path."""
-        return self._data_dir / SOCKET_NAME
+        assert self._socket_dir is not None
+        return self._socket_dir / SOCKET_NAME
 
     @property
     def connected(self) -> bool:
@@ -130,6 +137,9 @@ class AgentSupervisor:
             with contextlib.suppress(asyncio.CancelledError):
                 await self._task
             self._task = None
+        if (socket_dir := self._socket_dir) is not None:
+            self._socket_dir = None
+            await self._hass.async_add_executor_job(shutil.rmtree, socket_dir, True)
 
     async def async_request(
         self, method: str, params: dict[str, Any] | None = None
@@ -317,7 +327,16 @@ class AgentSupervisor:
 
     def _prepare_dir(self) -> None:
         self._data_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
-        self._data_dir.chmod(0o700)
+        try:
+            self._data_dir.chmod(0o700)
+        except OSError as err:
+            # A host share (Docker on macOS) may refuse chmod; the directory
+            # then keeps the share's permissions.
+            _LOGGER.warning("Can't restrict %s to its owner: %s", self._data_dir, err)
+        # Created once (mode 0700, a fresh random name) and kept across agent
+        # restarts; removed when the supervisor stops.
+        if self._socket_dir is None or not self._socket_dir.is_dir():
+            self._socket_dir = Path(tempfile.mkdtemp(prefix="quicharc-"))
 
     @staticmethod
     async def _forward_stderr(process: asyncio.subprocess.Process) -> None:

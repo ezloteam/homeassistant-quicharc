@@ -277,3 +277,69 @@ async def test_supervisor_restarts_crashed_agent(
         for line in (tmp_path / "data" / "requests.jsonl").read_text().splitlines()
     ]
     assert requests[-1] == "shutdown"
+
+
+async def test_socket_outside_the_data_dir(
+    hass: HomeAssistant,
+    tmp_path: Path,
+    unix_sockets,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The socket is in a private temp directory, kept across restarts, removed on stop.
+
+    /config can be a host share (Docker on macOS) where a Unix socket can't be
+    created or chmodded, and where chmod on the data directory fails too.
+    """
+    import tempfile
+
+    binary = AgentBinary(hass, tmp_path, base_url="https://unused", auth=_auth)
+    connected = asyncio.Event()
+    data_dir = tmp_path / "data"
+    real_chmod = Path.chmod
+
+    async def on_connected() -> None:
+        connected.set()
+
+    def refusing_chmod(path: Path, mode: int, **kwargs) -> None:
+        if path == data_dir:
+            raise OSError(22, "Invalid argument")
+        real_chmod(path, mode, **kwargs)
+
+    with (
+        patch.object(
+            binary,
+            "async_ensure",
+            AsyncMock(return_value=_fake_agent_wrapper(tmp_path)),
+        ),
+        patch.object(agent_module, "BACKOFF_INITIAL", 0.05),
+        patch.object(Path, "chmod", refusing_chmod),
+    ):
+        supervisor = AgentSupervisor(
+            hass,
+            data_dir,
+            binary,
+            telemetry=await async_get_telemetry(hass),
+            on_event=lambda e, d: None,
+            on_connected=on_connected,
+            on_failure=lambda err: None,
+            on_recovered=lambda: None,
+            on_disconnected=lambda: None,
+        )
+        supervisor.start()
+        await asyncio.wait_for(connected.wait(), 10)
+        socket_path = supervisor.socket_path
+        socket_dir = socket_path.parent
+        assert socket_path.is_socket()
+        assert data_dir not in socket_path.parents
+        assert socket_dir.parent == Path(tempfile.gettempdir())
+        assert socket_dir.stat().st_mode & 0o777 == 0o700
+        assert "Can't restrict" in caplog.text
+
+        connected.clear()
+        with pytest.raises(AgentConnectionError):
+            await supervisor.async_request("test.crash")
+        await asyncio.wait_for(connected.wait(), 10)
+        assert supervisor.socket_path == socket_path
+
+        await supervisor.async_stop()
+    assert not socket_dir.exists()

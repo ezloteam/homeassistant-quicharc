@@ -10,7 +10,12 @@ Remote access to your Home Assistant through your Ezlo account. The QuicHarc app
 
 ## Installation
 
-With [HACS](https://hacs.xyz):
+**Home Assistant 2026.11 and later**, with the built-in **Marketplace**:
+1. Open **Marketplace** in the sidebar. Adding a repository by its link needs a GitHub connection: if the Marketplace asks, connect your GitHub account (it shows a code to enter at github.com/login/device).
+2. **Add from link**: `https://github.com/ezloteam/homeassistant-quicharc`. The Marketplace recognises it as an integration.
+3. Open **QuicHarc**, install it, and restart Home Assistant.
+
+**Home Assistant 2026.10 and earlier**, with [HACS](https://hacs.xyz):
 1. HACS → three-dot menu → **Custom repositories**: add `https://github.com/ezloteam/homeassistant-quicharc`, type **Integration**.
 2. Search for **QuicHarc**, download it, and restart Home Assistant.
 
