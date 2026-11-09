@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Final
 
 DOMAIN: Final = "quicharc"
-VERSION: Final = "0.2.17"
+VERSION: Final = "0.2.18"
 
 EVENT_NOTIFICATION: Final = "quicharc_notification"
 

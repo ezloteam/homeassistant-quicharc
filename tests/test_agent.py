@@ -285,7 +285,7 @@ async def test_socket_outside_the_data_dir(
     unix_sockets,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The socket is in a private temp directory, kept across restarts, removed on stop.
+    """The socket is in a private temp directory, new for each start, removed on stop.
 
     /config can be a host share (Docker on macOS) where a Unix socket can't be
     created or chmodded, and where chmod on the data directory fails too.
@@ -339,7 +339,37 @@ async def test_socket_outside_the_data_dir(
         with pytest.raises(AgentConnectionError):
             await supervisor.async_request("test.crash")
         await asyncio.wait_for(connected.wait(), 10)
-        assert supervisor.socket_path == socket_path
+        assert supervisor.socket_path != socket_path
+        assert supervisor.socket_path.is_socket()
+        assert not socket_dir.exists()
+        socket_dir = supervisor.socket_path.parent
 
         await supervisor.async_stop()
     assert not socket_dir.exists()
+
+
+def test_socket_dir_prefers_xdg_runtime_dir(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """XDG_RUNTIME_DIR when set; the directory is private."""
+    monkeypatch.setenv("XDG_RUNTIME_DIR", str(tmp_path))
+    socket_dir = agent_module._make_socket_dir()
+    assert socket_dir.parent == tmp_path
+    assert socket_dir.name.startswith("quicharc-")
+    assert socket_dir.stat().st_mode & 0o777 == 0o700
+
+
+def test_socket_dir_falls_back_to_tmp_when_too_long(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A base too long for a Unix socket path falls back to /tmp."""
+    deep = tmp_path / ("d" * 120)
+    deep.mkdir()
+    monkeypatch.setenv("XDG_RUNTIME_DIR", str(deep))
+    socket_dir = agent_module._make_socket_dir()
+    try:
+        assert socket_dir.parent == Path("/tmp")
+        assert len(str(socket_dir / "agent.sock")) <= agent_module.MAX_SOCKET_PATH
+        assert not any(deep.iterdir())
+    finally:
+        socket_dir.rmdir()

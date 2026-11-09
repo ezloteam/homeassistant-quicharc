@@ -51,6 +51,24 @@ type ConnectedHandler = Callable[[], Awaitable[None]]
 type FailureHandler = Callable[[Exception | None], None]
 
 
+# sun_path holds about 104 (macOS) to 108 (Linux) bytes.
+MAX_SOCKET_PATH: Final = 100
+
+
+def _make_socket_dir() -> Path:
+    """Create a private directory for the agent's socket.
+
+    In XDG_RUNTIME_DIR when there is one, else the system temp directory;
+    /tmp if that would make the socket path too long for a Unix socket.
+    """
+    base = os.environ.get("XDG_RUNTIME_DIR") or None
+    socket_dir = Path(tempfile.mkdtemp(prefix="quicharc-", dir=base))
+    if len(os.fsencode(socket_dir / SOCKET_NAME)) <= MAX_SOCKET_PATH:
+        return socket_dir
+    shutil.rmtree(socket_dir, ignore_errors=True)
+    return Path(tempfile.mkdtemp(prefix="quicharc-", dir="/tmp"))
+
+
 class AgentSupervisor:
     """Run the agent, keep a socket connection to it and restart it on failure."""
 
@@ -333,10 +351,11 @@ class AgentSupervisor:
             # A host share (Docker on macOS) may refuse chmod; the directory
             # then keeps the share's permissions.
             _LOGGER.warning("Can't restrict %s to its owner: %s", self._data_dir, err)
-        # Created once (mode 0700, a fresh random name) and kept across agent
-        # restarts; removed when the supervisor stops.
-        if self._socket_dir is None or not self._socket_dir.is_dir():
-            self._socket_dir = Path(tempfile.mkdtemp(prefix="quicharc-"))
+        # A new private directory for each start (mode 0700, a random name
+        # nobody can create first); the previous one goes.
+        if self._socket_dir is not None:
+            shutil.rmtree(self._socket_dir, ignore_errors=True)
+        self._socket_dir = _make_socket_dir()
 
     @staticmethod
     async def _forward_stderr(process: asyncio.subprocess.Process) -> None:
