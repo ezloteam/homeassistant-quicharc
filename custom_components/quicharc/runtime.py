@@ -35,6 +35,7 @@ from .api import (
     QuicHarcApiError,
     QuicHarcAuthError,
     QuicHarcConnectionError,
+    QuicHarcSessionExpired,
     SubscriptionRequired,
 )
 from .const import (
@@ -181,6 +182,7 @@ class QuicHarcRuntime:
         self._unsub_refresh: CALLBACK_TYPE | None = None
         self._unsub_gauges: list[Callable[[], None]] = []
         self._stopped = False
+        self._session_expired = False
 
     @property
     def home_id(self) -> str | None:
@@ -360,7 +362,7 @@ class QuicHarcRuntime:
             self._unsub_refresh = None
         if self._stopped:
             return
-        next_refresh = dt_util.utcnow() + RETRY_DELAY
+        next_refresh: datetime | None = dt_util.utcnow() + RETRY_DELAY
         try:
             if self.home_public_key is None:
                 return
@@ -375,6 +377,18 @@ class QuicHarcRuntime:
                 agent_version=self.supervisor.agent_version,
                 ha_version=HA_VERSION,
             )
+        except QuicHarcSessionExpired as err:
+            # Only signing in again helps, and that reloads the entry: no retry.
+            self.last_refresh_error = str(err)
+            span.set_error(f"reauth: {err}")
+            next_refresh = None
+            if not self._session_expired:
+                self._session_expired = True
+                _LOGGER.warning(
+                    "Ezlo session is no longer valid (%s); sign in again to reconnect",
+                    err,
+                )
+                self.entry.async_start_reauth(self.hass)
         except QuicHarcAuthError as err:
             self.last_refresh_error = str(err)
             span.set_error(f"reauth: {err}")
@@ -423,11 +437,14 @@ class QuicHarcRuntime:
             await self._async_poll_pairings()
             await self._async_refresh_device_sync()
         finally:
-            span.set_attribute("quicharc.grant.next_refresh", next_refresh.isoformat())
+            span.set_attribute(
+                "quicharc.grant.next_refresh",
+                next_refresh.isoformat() if next_refresh else None,
+            )
             self._check_clock_skew()
             # Never re-arm after async_stop, or a cancelled refresh would leave
             # an orphaned timer refreshing for an unloaded entry.
-            if not self._stopped:
+            if next_refresh is not None and not self._stopped:
                 self._unsub_refresh = async_track_point_in_utc_time(
                     self.hass, self.async_refresh_config, next_refresh
                 )

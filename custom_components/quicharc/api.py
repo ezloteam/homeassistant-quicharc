@@ -37,6 +37,19 @@ class QuicHarcAuthError(QuicHarcApiError):
     """The Ezlo session is no longer valid."""
 
 
+class QuicHarcSessionExpired(QuicHarcAuthError):
+    """cloud/login refused the refresh token: only signing in again helps."""
+
+
+def is_session_expired(err: aiohttp.ClientResponseError) -> bool:
+    """Whether a token endpoint error means the refresh token is dead.
+
+    cloud/login answers 4xx (invalid_grant) for a refresh token it rotated,
+    revoked or never issued; 429 is only "slow down".
+    """
+    return 400 <= err.status < 500 and err.status != 429
+
+
 class SubscriptionRequired(QuicHarcApiError):
     """The account has no Home Assistant remote access entitlement.
 
@@ -172,16 +185,24 @@ class QuicHarcApi:
         self._oauth = oauth_session
         self._base = base_url.rstrip("/")
         self.clock_skew: float | None = None
+        self.session_expired = False
 
     async def async_access_token(self) -> dict[str, Any]:
-        """Return a valid OAuth token, refreshing it if needed."""
+        """Return a valid OAuth token, refreshing it if needed.
+
+        Once cloud/login has refused the refresh token, every later call
+        fails at once without presenting it again: a refused token never
+        becomes valid, and retrying it only floods cloud/login. Signing in
+        again reloads the entry, with a new client.
+        """
+        if self.session_expired:
+            raise QuicHarcSessionExpired(400, "invalid_grant")
         try:
             await self._oauth.async_ensure_token_valid()
         except aiohttp.ClientResponseError as err:
-            # cloud/login answers invalid_grant (4xx) for an expired or
-            # revoked refresh token: the user has to sign in again.
-            if 400 <= err.status < 500:
-                raise QuicHarcAuthError(err.status, "invalid_grant") from err
+            if is_session_expired(err):
+                self.session_expired = True
+                raise QuicHarcSessionExpired(err.status, "invalid_grant") from err
             raise QuicHarcConnectionError(str(err)) from err
         except aiohttp.ClientError as err:
             raise QuicHarcConnectionError(str(err)) from err

@@ -7,6 +7,7 @@ asking the user for application credentials.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any, Final, NoReturn, cast
 
@@ -37,6 +38,18 @@ from .const import (
 from .otel import KIND_CLIENT, AnySpan, async_get_telemetry, child_span, trace_headers
 
 _LOGGER = logging.getLogger(__name__)
+
+
+# Seconds before each retry of a refresh that failed in a way that may hide a
+# rotation cloud/login already made; kept short to stay in its reuse grace.
+REFRESH_RETRY_DELAYS: Final = (1.0, 3.0)
+
+
+def _retryable(err: ClientError) -> bool:
+    """A token request failure that is worth retrying at once."""
+    if isinstance(err, ClientResponseError):
+        return err.status == 429 or err.status >= 500
+    return True
 
 
 class EzloOAuth2Implementation(config_entry_oauth2_flow.LocalOAuth2Implementation):
@@ -92,12 +105,43 @@ class EzloOAuth2Implementation(config_entry_oauth2_flow.LocalOAuth2Implementatio
         )
 
     async def _async_refresh_token(self, token: dict) -> dict:
-        """Refresh the Ezlo token; its own trace unless part of another."""
+        """Refresh the Ezlo token; its own trace unless part of another.
+
+        cloud/login rotates the refresh token on every use, so the answer
+        must carry the new one: an answer without it is an error, never a
+        reason to keep the old token, which cloud/login has already retired.
+        A failure that may have happened after cloud/login rotated the token
+        (5xx, 429, a dropped connection) is retried within seconds with the
+        same token, while cloud/login still accepts a just-rotated token
+        (its reuse grace), instead of minutes later when it refuses it.
+        """
         telemetry = await async_get_telemetry(self.hass)
         with telemetry.span(
             "ezlo.token_refresh", attributes={"quicharc.environment": self._env.key}
-        ):
-            return await super()._async_refresh_token(token)
+        ) as span:
+            new_token = await self._async_refresh_request(token, span)
+            if not new_token.get("refresh_token") or not new_token.get("access_token"):
+                span.set_error("token answer without a refresh_token")
+                raise ClientError("cloud/login's token answer has no refresh_token")
+            return {**token, **new_token}
+
+    async def _async_refresh_request(self, token: dict, span: AnySpan) -> dict:
+        data = {
+            "grant_type": "refresh_token",
+            "client_id": self.client_id,
+            "refresh_token": token["refresh_token"],
+        }
+        for attempt, delay in enumerate((0.0, *REFRESH_RETRY_DELAYS), start=1):
+            if delay:
+                await asyncio.sleep(delay)
+            span.set_attribute("oauth.refresh.attempts", attempt)
+            try:
+                return await self._token_request(dict(data))
+            except ClientError as err:
+                if attempt > len(REFRESH_RETRY_DELAYS) or not _retryable(err):
+                    raise
+                _LOGGER.debug("Ezlo token refresh failed (%s); retrying", err)
+        raise AssertionError("unreachable")
 
     async def _token_request(self, data: dict) -> dict:
         """Call cloud/login's token endpoint, carrying the trace context."""

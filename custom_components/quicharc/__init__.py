@@ -29,7 +29,12 @@ from homeassistant.helpers.typing import ConfigType
 
 from . import http_config
 from .agent_binary import AgentBinary, AgentBinaryError
-from .api import QuicHarcApi, QuicHarcApiError, QuicHarcConnectionError
+from .api import (
+    QuicHarcApi,
+    QuicHarcApiError,
+    QuicHarcConnectionError,
+    is_session_expired,
+)
 from .const import (
     CONF_EDIT_HTTP_CONFIG,
     CONF_ENVIRONMENT,
@@ -144,7 +149,7 @@ async def _async_setup_entry(
     try:
         await oauth_session.async_ensure_token_valid()
     except ClientResponseError as err:
-        if 400 <= err.status < 500:
+        if is_session_expired(err):
             raise ConfigEntryAuthFailed("Ezlo session expired") from err
         raise ConfigEntryNotReady(str(err)) from err
     except ClientError as err:
